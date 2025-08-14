@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Shukla GPT — Web Jarvis (Online)</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+  <header class="header">
+    <div class="brand">⚔️ Shukla GPT</div>
+    <nav id="nav">
+      <button data-page="dashboard" class="active">Dashboard</button>
+      <button data-page="study">Study</button>
+      <button data-page="gym">Gym</button>
+      <button data-page="progress">Progress</button>
+      <button data-page="settings">Settings</button>
+    </nav>
+    <div class="right">
+      <div id="wakeStatus" class="badge">Listening: off</div>
+      <button id="wakeBtn" class="btn">Arise, Shukla</button>
+      <button id="micBtn" class="btn alt">🎤 Speak</button>
+    </div>
+  </header>
+
+  <main class="main">
+    <aside class="sidebar">
+      <div class="card">
+        <div class="title">Quick Commands</div>
+        <div class="small">Say <b>“Arise Shukla”</b> or click 🎤. Try: “study plan”, “gym plan”, “complete task”, “miss task”, “mark physics electrostatics done”, “mode teacher”. Hindi/Hinglish OK.</div>
+      </div>
+
+      <div class="card">
+        <div class="title">Today</div>
+        <div id="todayTasks" class="small">Generate plan in Study →</div>
+      </div>
+
+      <div class="card">
+        <div class="title">Stats</div>
+        <div class="kv"><span>Level</span><span id="statLevel">1</span></div>
+        <div class="kv"><span>XP</span><span id="statXP">0 / 100</span></div>
+        <div class="kv"><span>Streak</span><span id="statStreak">0</span></div>
+        <div class="kv"><span>Focus</span><span id="statFocus">60</span></div>
+        <div class="kv"><span>Strength</span><span id="statStrength">50</span></div>
+        <div class="kv"><span>Discipline</span><span id="statDiscipline">55</span></div>
+        <div style="margin-top:10px;display:flex;gap:8px;">
+          <button id="completeBtn" class="btn">Complete Task (+)</button>
+          <button id="missBtn" class="btn danger">Miss Task (–)</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="title">Notifications</div>
+        <div id="notifications" class="small">—</div>
+      </div>
+    </aside>
+
+    <section class="content">
+      <!-- Dashboard --!><!-- ===== ADD: Pomodoro / Focus UI (place near Dashboard or Settings) ===== -->
+<div class="card" id="pomodoroCard" style="margin-top:12px">
+  <div class="title">Pomodoro Focus Timer</div>
+  <div class="small">Work / Short break / Long break</div>
+  <div style="display:flex;gap:10px;align-items:center;margin-top:8px;">
+    <div id="pomTime" style="font-size:28px;font-weight:700">25:00</div>
+    <div style="display:flex;flex-direction:column;gap:6px">
+      <button id="pomStart" class="btn">Start</button>
+      <button id="pomPause" class="btn alt">Pause</button>
+      <button id="pomReset" class="btn danger">Reset</button>
+    </div>
+  </div>
+  <div style="margin-top:8px" class="small">Auto-block mode: <input id="pomAutoBlock" type="checkbox" /></div>
+</div>
+
+<!-- ===== ADD: CSV Import (Study Syllabus) ===== -->
+<div class="card" id="csvCard" style="margin-top:12px">
+  <div class="title">Upload Syllabus (CSV)</div>
+  <div class="small">CSV format: subject,chapter (one per line). Example: Physics,Electrostatics</div>
+  <input id="csvFile" type="file" accept=".csv" class="input" />
+  <div style="margin-top:8px">
+    <button id="importCsv" class="btn">Import CSV</button>
+    <button id="exportCsv" class="btn alt">Export current syllabus</button>
+  </div>
+  <div id="csvMsg" class="small" style="margin-top:8px"></div>
+</div>
+
+<!-- ===== ADD: GPT Chat (calls serverless) ===== -->
+<div class="card" id="gptCard" style="margin-top:12px">
+  <div class="title">Shukla GPT Chat (GPT)</div>
+  <div class="small">Ask study help, summaries, or motivate me. (Requires server proxy)</div>
+  <textarea id="gptPrompt" class="input" rows="3" placeholder="Explain electrostatics in simple words..."></textarea>
+  <div style="margin-top:8px;display:flex;gap:8px">
+    <button id="gptAsk" class="btn">Ask GPT</button>
+    <button id="gptAskSpeak" class="btn alt">Ask & Speak</button>
+  </div>
+  <div id="gptResp" class="small" style="margin-top:10px">No response yet.</div>
+</div>
+
+      <div id="page-dashboard" class="page">
+        <div class="card">
+          <div class="title">Welcome</div>
+          <div id="greeting" class="small">Click “Arise, Shukla” or say it aloud.</div>
+          <div style="margin-top:10px">Mode:
+            <select id="modeSelect" class="input smallin">
+              <option value="mentor" selected>Mentor</option>
+              <option value="teacher">Teacher</option>
+              <option value="friend">Friend</option>
+              <option value="trainer">Gym Trainer</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="grid2">
+          <div class="card">
+            <div class="title">Today's Missions</div>
+            <div id="missionsList" class="small">—</div>
+          </div>
+
+          <div class="card">
+            <div class="title">Task Log</div>
+            <div id="taskLog" class="small">No tasks yet</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Study -->
+      <div id="page-study" class="page" style="display:none">
+        <div class="card">
+          <div class="title">Study Planner • Sample CBSE Class 12</div>
+          <div class="row">
+            <label class="small">Finish syllabus in</label>
+            <input id="daysToFinish" class="input smallin" value="30">
+            <button id="genPlan" class="btn">Generate Plan</button>
+            <button id="savePlan" class="btn alt">Save</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="title">Plan by Day</div>
+          <div id="planByDay" class="small scroll">No plan yet.</div>
+        </div>
+      </div>
+
+      <!-- Gym -->
+      <div id="page-gym" class="page" style="display:none">
+        <div class="card">
+          <div class="title">Gym Planner</div>
+          <div id="gymWeekly" class="small"></div>
+          <div id="gymToday" class="small" style="margin-top:8px"></div>
+        </div>
+      </div>
+
+      <!-- Progress -->
+      <div id="page-progress" class="page" style="display:none">
+        <div class="card">
+          <div class="title">Progress (Weekly XP)</div>
+          <canvas id="xpChart" height="120"></canvas>
+        </div>
+
+        <div class="card">
+          <div class="title">History</div>
+          <div id="history" class="small">No history yet</div>
+        </div>
+      </div>
+
+      <!-- Settings -->
+      <div id="page-settings" class="page" style="display:none">
+        <div class="card">
+          <div class="title">Settings</div>
+          <div class="row" style="gap:12px;align-items:center">
+            <label class="small">Voice language</label>
+            <select id="langSelect" class="input smallin">
+              <option value="auto">Auto (Hinglish)</option>
+              <option value="en-IN">English (India)</option>
+              <option value="hi-IN">Hindi (India)</option>
+            </select>
+            <label class="small">Voice</label>
+            <select id="voiceSelect" class="input smallin"><option>Default</option></select>
+            <button id="testSpeak" class="btn">Test Voice</button>
+          </div>
+          <div class="small" style="margin-top:8px">OpenAI/GPT: To use GPT responses you must add a server-side function (do not put keys in client). See instructions below.
+         </div>
+        </div>
+      </div>
+
+    </section>
+  </main>
+
+  <footer class="footer">Shukla GPT — Web Edition • Saves to browser (localStorage)</footer>
+
+  <script src="script.js"></script>
+</body>
+</html>
