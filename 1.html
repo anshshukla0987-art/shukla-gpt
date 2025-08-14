@@ -1,0 +1,572 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Shukla GPT — Jarvis Web</title>
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <!-- Fonts & icons -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;500;700;800&display=swap" rel="stylesheet">
+
+  <style>
+    /* -------------------------
+       Jarvis-style dark theme + animated background
+       ------------------------- */
+    :root{
+      --bg:#051021; --card:#071422; --accent:#00ffd7; --muted:#9fb6c2;
+      --glass: rgba(255,255,255,0.03); --glass-2: rgba(255,255,255,0.02);
+    }
+    *{box-sizing:border-box;font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial;}
+    html,body{height:100%;margin:0;background:linear-gradient(180deg,#001118 0%, #051021 100%);color:#e6fbf8;overflow:hidden}
+    #bgCanvas{position:fixed;inset:0;z-index:0}
+    .app{
+      position:relative;z-index:3;display:grid;grid-template-columns:320px 1fr;gap:18px;padding:22px;height:100vh;align-items:start;
+      pointer-events:none; /* allow clicks only inside panels (we enable pointer-events on panels) */
+    }
+    header{position:fixed;top:12px;left:50%;transform:translateX(-50%);z-index:5;display:flex;align-items:center;gap:12px;padding:10px 16px;border-radius:14px;background:linear-gradient(90deg, rgba(255,255,255,0.02), rgba(255,255,255,0.005));box-shadow:0 6px 30px rgba(0,0,0,0.6);backdrop-filter:blur(6px);pointer-events:auto}
+    .brand{font-weight:800;color:var(--accent);letter-spacing:0.6px}
+    .sub{font-size:12px;color:var(--muted);margin-left:8px}
+    .panel{background:linear-gradient(180deg,var(--glass),var(--glass-2));border-radius:12px;padding:12px;border:1px solid rgba(255,255,255,0.04);box-shadow:0 8px 30px rgba(0,0,0,0.6);pointer-events:auto}
+    .sidebar{padding:14px;width:320px;height:calc(100vh - 60px);overflow:auto}
+    .content{padding:14px;height:calc(100vh - 60px);overflow:auto}
+    .title{font-weight:700;font-size:18px;margin-bottom:8px}
+    .small{font-size:13px;color:var(--muted)}
+    .btn{background:var(--accent);color:#042826;border:0;padding:8px 12px;border-radius:8px;cursor:pointer;font-weight:700}
+    .btn.alt{background:#66ffcc}
+    .btn.warn{background:#ffcf66;color:#2a1700}
+    .row{display:flex;gap:8px;align-items:center}
+    input,input[type="number"],select,textarea{background:#081825;border:1px solid rgba(255,255,255,0.02);color:#fff;padding:8px;border-radius:8px;width:100%}
+    .kv{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px dashed rgba(255,255,255,0.02);font-size:14px}
+    .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    .badge{background:rgba(255,255,255,0.04);padding:6px 8px;border-radius:999px;color:var(--muted);font-size:12px}
+    footer{position:fixed;left:22px;bottom:18px;color:var(--muted);font-size:12px;z-index:5}
+    /* Panels & UI pieces */
+    .missions{max-height:260px;overflow:auto}
+    .plan-list{max-height:360px;overflow:auto}
+    .chart-wrap{background:transparent;padding:6px;border-radius:8px}
+    .greet{font-weight:700;font-size:16px}
+    /* Typewriter for startup */
+    .console{font-family:monospace;background:transparent;padding:8px;border-radius:8px;color:#b7fff1}
+    /* animated glow */
+    .glow{box-shadow:0 0 18px rgba(0,255,215,0.08), inset 0 0 20px rgba(0,255,215,0.02)}
+    /* responsive */
+    @media (max-width:980px){ .app{grid-template-columns:1fr;padding:12px} .sidebar{order:2;width:auto;height:auto} .content{order:1} }
+    /* startup overlay */
+    #startup{position:fixed;inset:0;background:linear-gradient(180deg,rgba(0,0,0,0.6),rgba(0,0,0,0.7));z-index:8;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:18px;color:#cfeee9;font-size:16px}
+    .logo{font-size:36px;font-weight:800;color:var(--accent);letter-spacing:2px}
+    .spinner{width:200px;height:6px;background:rgba(255,255,255,0.03);border-radius:999px;overflow:hidden}
+    .spinner > i{display:block;height:100%;width:40%;background:linear-gradient(90deg,#00ffd7,#66ffcc);animation:load 1.6s linear infinite}
+    @keyframes load{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}} 
+    /* typewriter */
+    .type{font-family:monospace;font-size:14px;color:#b8fff2}
+    /* buttons small */
+    .smallbtn{padding:6px 8px;font-size:13px;border-radius:6px}
+  </style>
+</head>
+<body>
+  <!-- Animated particle background canvas -->
+  <canvas id="bgCanvas"></canvas>
+
+  <!-- Startup overlay -->
+  <div id="startup">
+    <div class="logo">SHUKLA • GPT</div>
+    <div class="spinner"><i></i></div>
+    <div class="type console" id="bootConsole">Booting neural interface...</div>
+    <div class="small">Say “Arise Shukla” or click the button to begin</div>
+    <div style="margin-top:8px"><button id="skipBoot" class="btn">Open Now</button></div>
+  </div>
+
+  <!-- Main app panels -->
+  <header class="panel">
+    <div class="brand">⚔️ SHUKLA GPT</div>
+    <div class="sub">Jarvis-style Study & Trainer Assistant</div>
+    <div style="margin-left:16px" class="badge">v1 • Web</div>
+    <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
+      <div id="wakeStatus" class="badge">Listening: off</div>
+      <button id="ariseBtn" class="btn">Arise, Shukla</button>
+      <button id="micBtn" class="btn alt">🎤 Speak</button>
+    </div>
+  </header>
+
+  <div class="app">
+    <!-- Sidebar -->
+    <aside class="sidebar panel">
+      <div class="title">Quick Actions</div>
+      <div class="row" style="margin-bottom:8px">
+        <button id="todayTasksBtn" class="btn smallbtn">Today’s Tasks</button>
+        <button id="gymBtn" class="btn alt smallbtn">Gym</button>
+      </div>
+
+      <div class="panel" style="margin-bottom:10px">
+        <div class="title">Today</div>
+        <div id="todayTasks" class="missions small">No plan — generate one below</div>
+      </div>
+
+      <div class="panel" style="margin-bottom:10px">
+        <div class="title">Player Stats</div>
+        <div class="kv"><span>Level</span><span id="statLevel">1</span></div>
+        <div class="kv"><span>XP</span><span id="statXP">0 / 100</span></div>
+        <div class="kv"><span>Streak</span><span id="statStreak">0</span></div>
+        <div class="kv"><span>Focus</span><span id="statFocus">60</span></div>
+        <div class="kv"><span>Strength</span><span id="statStrength">50</span></div>
+        <div class="kv"><span>Discipline</span><span id="statDiscipline">55</span></div>
+        <div style="margin-top:8px;display:flex;gap:8px">
+          <button id="completeBtn" class="btn">Complete</button>
+          <button id="missBtn" class="btn warn">Miss</button>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="title">Notifications</div>
+        <div id="notifications" class="small">—</div>
+      </div>
+    </aside>
+
+    <!-- Content -->
+    <section class="content panel">
+      <div style="display:flex;gap:12px;align-items:center;justify-content:space-between;margin-bottom:12px">
+        <div>
+          <div id="greeting" class="greet">Welcome — click Arise, Shukla</div>
+          <div id="subGreeting" class="small">I am your mentor, trainer and friend.</div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <select id="modeSelect" class="smallin">
+            <option value="mentor">Mentor</option>
+            <option value="teacher">Teacher</option>
+            <option value="trainer">Gym Trainer</option>
+            <option value="friend">Friend</option>
+          </select>
+          <div class="badge">Jarvis vibes</div>
+        </div>
+      </div>
+
+      <!-- Grid blocks -->
+      <div class="grid2">
+        <div class="panel">
+          <div class="title">Study Planner</div>
+          <div class="small">Finish syllabus in <input id="daysToFinish" type="number" value="30" style="width:80px;display:inline-block"/> days</div>
+          <div style="margin-top:8px">
+            <button id="genPlan" class="btn smallbtn">Generate Plan</button>
+            <button id="savePlan" class="btn alt smallbtn">Save Plan</button>
+            <button id="importCsvBtn" class="btn smallbtn">Import CSV</button>
+            <input id="csvFile" type="file" accept=".csv" style="display:none" />
+          </div>
+          <div class="plan-list" id="planByDay" style="margin-top:10px"></div>
+        </div>
+
+        <div class="panel">
+          <div class="title">Gym Planner</div>
+          <div id="gymWeekly" class="small"></div>
+          <div id="gymToday" style="margin-top:8px;font-weight:700"></div>
+          <div style="margin-top:8px">
+            <button id="customGym" class="btn smallbtn">Customize</button>
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-top:12px" class="grid2">
+        <div class="panel">
+          <div class="title">Progress</div>
+          <div class="chart-wrap"><canvas id="xpChart"></canvas></div>
+        </div>
+
+        <div class="panel">
+          <div class="title">Language Mentor & GPT</div>
+          <div class="small">Word of the day & speaking practice</div>
+          <div style="margin-top:8px" id="wordOfDay">—</div>
+          <div style="margin-top:8px;display:flex;gap:8px">
+            <button id="newWord" class="btn smallbtn">New Word</button>
+            <button id="practiceBtn" class="btn alt smallbtn">Practice</button>
+          </div>
+
+          <div style="margin-top:10px">
+            <textarea id="gptPrompt" rows="3" class="small" placeholder="Ask study help or a summary..."></textarea>
+            <div style="display:flex;gap:8px;margin-top:8px">
+              <button id="gptAsk" class="btn smallbtn">Ask GPT (requires server)</button>
+              <button id="gptSpeak" class="btn alt smallbtn">Ask & Speak</button>
+            </div>
+            <div id="gptResp" style="margin-top:6px" class="small">GPT response here</div>
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-top:12px" class="panel">
+        <div class="title">Task History</div>
+        <div id="taskLog" class="small" style="max-height:180px;overflow:auto">No tasks yet</div>
+      </div>
+
+    </section>
+  </div>
+
+  <footer>Shukla GPT • Jarvis Web — Save state in browser</footer>
+
+  <!-- App script -->
+  <script>
+  /************************************************************************
+   * Shukla GPT — Single-file Web Jarvis
+   * - Animated particles background
+   * - Startup overlay + typewriter
+   * - Voice recognition (Chrome recommended)
+   * - Speech synthesis (to talk back)
+   * - Study planner (generate / mark done)
+   * - Gym planner
+   * - XP / reward / penalty / level up
+   * - Chart (Chart.js)
+   * - CSV import (syllabus)
+   ************************************************************************/
+
+  /**********************
+   * Utilities & state
+   **********************/
+  const $ = s => document.querySelector(s);
+  const $$ = s => Array.from(document.querySelectorAll(s));
+  const now = ()=> new Date().getTime();
+
+  const STORAGE_KEY = 'shukla_gpt_v_final';
+  let state = {
+    woke:false,
+    mode:'mentor',
+    level:1, xp:0, xpNeeded:100, streak:0,
+    stats:{Focus:60, Strength:50, Discipline:55},
+    history:[], // {time, type, note, xp}
+    weeklyXP:[0,0,0,0,0,0,0],
+    plan:null, createdAt:null,
+    customSyllabus:null
+  };
+
+  function saveState(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); updateUI(); }
+  function loadState(){ const s = localStorage.getItem(STORAGE_KEY); if(s) state = JSON.parse(s); else saveState(); }
+
+  function notify(msg){
+    const n = $('#notifications');
+    n.innerHTML = `<div>${new Date().toLocaleTimeString()} — ${msg}</div>` + n.innerHTML;
+  }
+
+  /* ----------------- voice (TTS) ----------------- */
+  function speak(text, lang='auto'){
+    try{
+      const u = new SpeechSynthesisUtterance(text);
+      if(lang==='auto') u.lang = /[\u0900-\u097F]/.test(text) ? 'hi-IN' : 'en-IN';
+      else u.lang = lang;
+      const voices = speechSynthesis.getVoices();
+      // keep default unless user selects
+      const sel = document.getElementById('voiceSelect');
+      if(sel && voices[Number(sel?.value)]) u.voice = voices[Number(sel.value)];
+      window.speechSynthesis.cancel(); window.speechSynthesis.speak(u);
+    }catch(e){ console.warn('TTS error',e); }
+  }
+
+  /* ----------------- startup overlay typewriter ----------------- */
+  (function boot(){
+    const bootText = ['Initializing system core...','Loading study modules...','Preparing gym routines...','Synchronizing mentor mode...','Ready.'];
+    const out = $('#bootConsole');
+    let i=0;
+    function nextLine(){
+      if(i>=bootText.length){ setTimeout(()=>{ document.getElementById('startup').style.display='none'; },600); return; }
+      out.textContent = bootText[i++];
+      setTimeout(nextLine, 700);
+    }
+    nextLine();
+    $('#skipBoot').onclick = ()=> document.getElementById('startup').style.display='none';
+  })();
+
+  /* ----------------- Canvas particles background ----------------- */
+  (function particles(){
+    const canvas = document.getElementById('bgCanvas');
+    const ctx = canvas.getContext('2d');
+    let W = canvas.width = innerWidth, H = canvas.height = innerHeight;
+    window.addEventListener('resize', ()=>{ W=canvas.width=innerWidth; H=canvas.height=innerHeight; });
+    const pts = [];
+    const N = Math.round((W*H)/70000)+40;
+    for(let i=0;i<N;i++){
+      pts.push({x:Math.random()*W,y:Math.random()*H, vx:(Math.random()*2-1)*0.25, vy:(Math.random()*2-1)*0.25, r:1+Math.random()*2});
+    }
+    function step(){
+      ctx.clearRect(0,0,W,H);
+      // gradient glow center
+      const g = ctx.createRadialGradient(W*0.2,H*0.2,20,W*0.6,H*0.4,Math.max(W,H));
+      g.addColorStop(0,'rgba(0,255,215,0.05)');
+      g.addColorStop(1,'rgba(0,0,0,0)');
+      ctx.fillStyle = g; ctx.fillRect(0,0,W,H);
+      // draw points
+      ctx.globalCompositeOperation = 'lighter';
+      for(const p of pts){
+        p.x += p.vx; p.y += p.vy;
+        if(p.x<0||p.x>W) p.vx*=-1;
+        if(p.y<0||p.y>H) p.vy*=-1;
+        ctx.beginPath();
+        ctx.fillStyle = 'rgba(0,255,215,0.08)';
+        ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
+        ctx.fill();
+      }
+      // connect nearby
+      for(let i=0;i<pts.length;i++){
+        for(let j=i+1;j<pts.length;j++){
+          const a=pts[i], b=pts[j];
+          const dx=a.x-b.x, dy=a.y-b.y;
+          const d = Math.sqrt(dx*dx+dy*dy);
+          if(d<110){
+            ctx.strokeStyle = 'rgba(0,255,215,'+ (0.08 - d/1400) +')';
+            ctx.lineWidth = 0.6;
+            ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke();
+          }
+        }
+      }
+      ctx.globalCompositeOperation = 'source-over';
+      requestAnimationFrame(step);
+    }
+    step();
+  })();
+
+  /* ----------------- sample syllabus & gym ----------------- */
+  const DEFAULT_SYLLABUS = {
+    Physics:["Electrostatics","Current Electricity","Magnetism","EM Induction","Alternating Current","Waves & Optics","Modern Physics"],
+    Chemistry:["Solid State","Solutions","Electrochemistry","Kinetics","Surface Chemistry","Organic Basics"],
+    Maths:["Relations & Functions","Calculus","Matrices","Vectors","Probability"],
+    English:["Flamingo","Vistas","Writing Skills"]
+  };
+  const DEFAULT_GYM = {
+    Monday:['Chest','Triceps','Push-ups 3x15','Bench Press 4x8'],
+    Tuesday:['Back','Biceps','Pull-ups 3x8','Rows 4x10'],
+    Wednesday:['Legs','Cardio','Squats 4x8','Lunges 3x12'],
+    Thursday:['Shoulders','Abs','Overhead Press','Plank 3x60s'],
+    Friday:['Full Body','Deadlift 3x5','Burpees 3x12'],
+    Saturday:['Cardio','Stretch','20 min jog'],
+    Sunday:['Rest']
+  };
+
+  /* ----------------- UI rendering functions ----------------- */
+  function syllabus(){ return state.customSyllabus || DEFAULT_SYLLABUS; }
+  function renderGym(){
+    $('#gymWeekly').innerHTML = Object.entries(DEFAULT_GYM).map(([d,arr])=>`<div style="margin:6px 0"><b>${d}</b>: ${arr.join(', ')}</div>`).join('');
+    $('#gymToday').textContent = 'Today: ' + (DEFAULT_GYM[new Date().toLocaleDateString('en-US',{weekday:'long'})] || ['Rest']).join(', ');
+  }
+
+  function renderPlan(){
+    const plan = state.plan;
+    const target = $('#planByDay');
+    if(!plan){ target.innerHTML = '<div class="small">No plan yet. Click Generate Plan.</div>'; return; }
+    target.innerHTML = '';
+    plan.forEach((arr, idx)=>{
+      const d = document.createElement('div'); d.className='panel'; d.style.marginBottom='8px';
+      d.innerHTML = `<div style="font-weight:700">Day ${idx+1} — ${arr.length} tasks</div>
+        <ul style="padding-left:16px">${arr.map((t,j)=>`<li>${t.subject}: ${t.chapter} <button class="btn smallbtn" onclick="markDone(${idx},${j})">Mark</button></li>`).join('')}</ul>`;
+      target.appendChild(d);
+    });
+  }
+
+  window.markDone = function(dayIndex, j){
+    const task = state.plan?.[dayIndex]?.[j];
+    if(!task) return;
+    const rec = { time: Date.now(), type:'done', note: `${task.subject} — ${task.chapter}`, xp:20 };
+    state.history.push(rec); addXP(20); saveState(); renderTaskLog(); renderPlan(); notify('Marked done: '+task.chapter); speak('Marked '+task.chapter+' done.');
+  };
+
+  function renderTaskLog(){
+    const log = state.history.slice().reverse().slice(0,80).map(h=>`<div>${new Date(h.time).toLocaleString()} — ${h.type==='done'?'✅':'❌'} ${h.note || ''} ${h.xp?('('+ (h.xp>0? '+'+h.xp : h.xp) + ' XP)') : ''}</div>`).join('');
+    $('#taskLog').innerHTML = log || '<div class="small">No tasks yet</div>';
+    $('#history') && ($('#history').innerHTML = log);
+  }
+
+  function updateStatsUI(){
+    $('#statLevel').textContent = state.level;
+    $('#statXP').textContent = state.xp + ' / ' + state.xpNeeded;
+    $('#statStreak').textContent = state.streak;
+    $('#statFocus').textContent = state.stats.Focus;
+    $('#statStrength').textContent = state.stats.Strength;
+    $('#statDiscipline').textContent = state.stats.Discipline;
+  }
+
+  /* ----------------- plan generator ----------------- */
+  function generatePlan(days){
+    days = Math.max(1, Number(days||30));
+    const items = [];
+    Object.keys(syllabus()).forEach(sub=>{
+      syllabus()[sub].forEach(ch => items.push({subject:sub,chapter:ch}));
+    });
+    const per = Math.ceil(items.length / days);
+    state.plan = Array.from({length:days}, (_,i)=> items.slice(i*per,(i+1)*per));
+    state.createdAt = Date.now();
+    saveState();
+    renderPlan();
+    renderToday();
+    notify('Plan created for '+days+' days');
+  }
+
+  function renderToday(){
+    const arr = todayTasks();
+    const html = arr.length ? arr.map(t=>`<div><b>${t.subject}</b>: ${t.chapter}</div>`).join('') : '<div class="small">No tasks today — generate plan</div>';
+    $('#todayTasks').innerHTML = html;
+  }
+
+  function todayTasks(){
+    if(!state.plan) return [];
+    const idx = Math.min(state.plan.length-1, Math.floor(((Date.now()) - (state.createdAt||Date.now()))/(1000*60*60*24)));
+    return state.plan[idx] || [];
+  }
+
+  /* ----------------- XP / level logic ----------------- */
+  function addXP(n){
+    state.xp = Math.max(0, state.xp + n);
+    // weekly bucket
+    const wd = (new Date().getDay()+6)%7;
+    state.weeklyXP[wd] = Math.max(0, (state.weeklyXP[wd]||0) + Math.max(0,n));
+    while(state.xp >= state.xpNeeded){
+      state.xp -= state.xpNeeded; state.level++; state.xpNeeded = Math.round(state.xpNeeded*1.2 + 20);
+      state.stats.Focus += 2; state.stats.Strength += 2; state.stats.Discipline += 2;
+      notify('LEVEL UP! Level ' + state.level); speak('Level up! You are now level ' + state.level);
+    }
+    saveState(); updateStatsUI(); drawChart();
+  }
+
+  function completeTask(){
+    const rec = {time:Date.now(), type:'done', note:'Manual completion', xp:20};
+    state.history.push(rec); addXP(20); notify('+20 XP'); renderTaskLog();
+  }
+  function missTask(){
+    const rec = {time:Date.now(), type:'miss', note:'Missed task', xp:-10};
+    state.history.push(rec); addXP(-10); state.streak=0; notify('-10 XP (penalty)'); renderTaskLog();
+  }
+
+  /* ----------------- chart ----------------- */
+  let chart = null;
+  function drawChart(){
+    const ctx = document.getElementById('xpChart').getContext('2d');
+    if(chart) chart.destroy();
+    chart = new Chart(ctx, {
+      type:'line',
+      data:{
+        labels:['Mon','Tue','Wed','Thu','Fri','Sat','Sun'],
+        datasets:[{label:'XP', data: state.weeklyXP, borderColor:'#00ffd7', tension:0.3, fill:false}]
+      },
+      options:{plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true}}}
+    });
+  }
+
+  /* ----------------- language mentor / words ----------------- */
+  const WORDS = [
+    {en:'resilient', hi:'लचीला', ex:'Be resilient under pressure.'},
+    {en:'meticulous', hi:'सूक्ष्म-ध्यान', ex:'Be meticulous with notes.'},
+    {en:'consistency', hi:'निरंतरता', ex:'Consistency beats talent.'},
+    {en:'discipline', hi:'अनुशासन', ex:'Discipline builds success.'}
+  ];
+  function newWord(){
+    const w = WORDS[Math.floor(Math.random()*WORDS.length)];
+    $('#wordOfDay').innerHTML = `<div style="font-weight:700">${w.en} — <span class="small">${w.hi}</span></div><div class="small">${w.ex}</div>`;
+    speak(w.en + '. ' + w.ex);
+  }
+
+  /* ----------------- CSV import (syllabus) ----------------- */
+  $('#importCsvBtn').onclick = ()=> $('#csvFile').click();
+  $('#csvFile').onchange = async function(){
+    const f = this.files[0]; if(!f) return;
+    const text = await f.text(); const lines = text.split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
+    const custom = {};
+    lines.forEach(l=>{
+      const parts = l.split(','); if(parts.length<2) return;
+      const subject = parts[0].trim(); const chapter = parts.slice(1).join(',').trim();
+      if(!custom[subject]) custom[subject]=[]; custom[subject].push(chapter);
+    });
+    state.customSyllabus = custom; state.plan = null; saveState(); notify('CSV imported: '+lines.length + ' lines'); renderPlan();
+  };
+
+  /* ----------------- voice recognition (STT) ----------------- */
+  const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition || null;
+  let recognizer = null;
+  function startListening(){
+    if(!SpeechRec){ notify('SpeechRecognition not supported — use Chrome/Edge'); speak('Speech recognition is not supported'); return; }
+    recognizer = new SpeechRec(); recognizer.lang = 'en-IN'; recognizer.interimResults = false; recognizer.maxAlternatives = 1;
+    recognizer.onresult = (e)=> handleCommand(e.results[0][0].transcript);
+    recognizer.onerror = (e)=> { notify('Voice error: '+ e.error); };
+    recognizer.onend = ()=> { $('#wakeStatus').textContent = state.woke ? 'Listening: on' : 'Listening: off'; };
+    recognizer.start(); $('#wakeStatus').textContent = 'Listening: ...';
+  }
+
+  function handleCommand(raw){
+    const cmd = raw.toLowerCase().trim();
+    notify('Heard: '+cmd);
+    if(!state.woke && (/arise shukla|arise, shukla|shukla/i.test(cmd))){ state.woke = true; $('#wakeStatus').textContent='Listening: on'; speak('System online.'); renderToday(); return; }
+    if(/study plan|padhai|aaj ka study plan|give me tasks|today's tasks/.test(cmd)){ if(!state.plan) generatePlan(Number($('#daysToFinish').value||30)); renderToday(); speak('Today tasks ready.'); return; }
+    if(/gym|aaj gym|workout/.test(cmd)){ renderGym(); speak($('#gymToday').textContent); return; }
+    if(/complete task|task complete|kaam ho gaya/.test(cmd)){ completeTask(); return; }
+    if(/miss task|task chhuta|kaam reh gaya/.test(cmd)){ missTask(); return; }
+    if(/level|mera level/.test(cmd)){ speak(`Level ${state.level}. XP ${state.xp} of ${state.xpNeeded}`); return; }
+    if(/mode (teacher|friend|trainer|mentor)/.test(cmd)){ const m = cmd.match(/mode (teacher|friend|trainer|mentor)/)[1]; state.mode=m; saveState(); speak('Mode set to '+m); return; }
+    if(/mark /.test(cmd) && /done|ho gaya|ho gya/.test(cmd)){
+      // naive matching
+      const subs = Object.keys(syllabus());
+      for(const s of subs){
+        if(cmd.includes(s.toLowerCase())){
+          const chap = syllabus()[s].find(c=> cmd.includes(c.toLowerCase().split(' ')[0]));
+          if(chap){ state.history.push({time:Date.now(), type:'done', note:`${s} - ${chap}`, xp:20}); addXP(20); saveState(); renderTaskLog(); speak(`Marked ${chap} done`); return; }
+        }
+      }
+      speak('Could not find chapter to mark done.');
+      return;
+    }
+    // fallback short reply
+    speak('Command not recognized. Try: study plan, gym plan, complete task, or mark physics electrostatics done.');
+  }
+
+  /* ----------------- GPT client (placeholder) ----------------- */
+  async function askGPT(prompt){
+    // This expects a serverless endpoint (Netlify/Vercel) as explained in deploy docs.
+    // For now we'll display a friendly placeholder.
+    $('#gptResp').textContent = 'To enable GPT: deploy serverless proxy (Netlify functions) and set OPENAI_KEY.';
+    notify('GPT proxy not configured.');
+    return null;
+  }
+  $('#gptAsk').onclick = async ()=>{
+    const p = $('#gptPrompt').value.trim();
+    if(!p) return notify('Enter a question.');
+    const res = await askGPT(p);
+    if(res) $('#gptResp').textContent = res;
+  };
+  $('#gptSpeak').onclick = async ()=>{
+    const p = $('#gptPrompt').value.trim(); if(!p) return notify('Enter a question.');
+    const res = await askGPT(p);
+    if(res){ $('#gptResp').textContent = res; speak(res); }
+  };
+
+  /* ----------------- event bindings ----------------- */
+  $('#ariseBtn').onclick = ()=> { state.woke = true; $('#wakeStatus').textContent='Listening: on'; speak('Shukla online.'); renderToday(); };
+  $('#micBtn').onclick = startListening;
+  $('#todayTasksBtn').onclick = ()=> { renderToday(); speak('Today tasks shown.'); };
+  $('#gymBtn').onclick = ()=> { renderGym(); speak($('#gymToday').textContent); };
+  $('#genPlan').onclick = ()=> generatePlan(Number($('#daysToFinish').value||30));
+  $('#savePlan').onclick = ()=> { saveState(); notify('Plan saved.'); speak('Plan saved.'); };
+  $('#importCsvBtn').onclick = ()=> $('#csvFile').click();
+  $('#completeBtn').onclick = completeTask;
+  $('#missBtn').onclick = missTask;
+  $('#newWord').onclick = newWord;
+  $('#practiceBtn').onclick = ()=> {
+    if(!SpeechRec){ notify('Speech not supported'); return; }
+    const r = new SpeechRec(); r.lang = 'en-IN'; r.onresult = e=> { const t = e.results[0][0].transcript; $('#wordOfDay').innerHTML += `<div class="small">You said: ${t}</div>`; speak('Nice attempt.'); };
+    r.onerror = e=> notify('Practice error: '+e.error); r.start();
+  };
+
+  /* ----------------- helpers & init ----------------- */
+  function saveState(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); updateUI(); }
+  function loadState(){ const data = localStorage.getItem(STORAGE_KEY); if(data) state = JSON.parse(data); else saveState(); }
+  function updateUI(){ renderTaskLog(); renderGym(); renderPlan(); renderToday(); updateStatsUI(); drawChart(); }
+  loadState(); updateUI();
+
+  // populate voices when ready
+  if(window.speechSynthesis) window.speechSynthesis.onvoiceschanged = ()=>{/* no-op, TTS picks default */}
+
+  // boot greetings after short delay
+  setTimeout(()=>{ $('#greeting').textContent = 'Ready — Say "Arise Shukla" or press the button.'; },1600);
+
+  // expose saveState globally for inline handlers
+  window.saveState = saveState;
+  function saveState(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); updateUI(); }
+
+  // draw chart initially
+  drawChart();
+
+  </script>
+</body>
+</html>
